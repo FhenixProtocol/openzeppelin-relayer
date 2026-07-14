@@ -4,8 +4,14 @@ pub const WORKER_DEFAULT_MAXIMUM_RETRIES: usize = 5;
 pub const WORKER_TRANSACTION_REQUEST_RETRIES: usize = 5;
 
 // Transaction submission retry counts per command type
-pub const WORKER_TRANSACTION_SUBMIT_RETRIES: usize = 0; // No retries — status checker handles recovery
-pub const WORKER_TRANSACTION_RESUBMIT_RETRIES: usize = 0; // No retries — status checker handles recovery
+// FHENIX PATCH: upstream sets these to 0 ("status checker handles recovery"), but
+// with 0 a single transient RPC error aborts the job outright, leaving zombie tx
+// state for the resubmission machinery — which under a nonce gap becomes an
+// unbounded resubmit storm (see upstream #818). In-job retries ride out transient
+// errors while reusing the SAME prepared transaction (the nonce is allocated in
+// the request handler, not here), so retrying burns no additional nonces.
+pub const WORKER_TRANSACTION_SUBMIT_RETRIES: usize = 3;
+pub const WORKER_TRANSACTION_RESUBMIT_RETRIES: usize = 3;
 pub const WORKER_TRANSACTION_CANCEL_RETRIES: usize = 0; // No retries — Cancel/replacement (status checker will retry)
 pub const WORKER_TRANSACTION_RESEND_RETRIES: usize = 0; // No retries — Resend same transaction (status checker will retry)
 
