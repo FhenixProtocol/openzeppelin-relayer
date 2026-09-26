@@ -40,9 +40,14 @@ jobs:
           echo "allowlist=$ALLOWLIST" >> $GITHUB_OUTPUT
       - name: Check if user is in allowlist
         id: check_allowlist
+        env:
+          # Values that come from event data or from a checked-out file are
+          # attacker-influenceable, so they are passed through the environment
+          # instead of being interpolated into the script body.
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          ALLOWLIST: ${{ steps.read_allowlist.outputs.allowlist }}
         run: |
-          PR_USER=${{ github.event.pull_request.user.login }}
-          if [[ "${{ steps.read_allowlist.outputs.allowlist }}" == *"$PR_USER"* ]]; then
+          if [[ "$ALLOWLIST" == *"$PR_USER"* ]]; then
             echo "is_allowed=true" >> $GITHUB_OUTPUT
           else
             echo "is_allowed=false" >> $GITHUB_OUTPUT
