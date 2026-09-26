@@ -59,14 +59,22 @@ jobs:
           token: ${{ steps.gh-app-token.outputs.token }}
       - name: Set release branch name
         id: set_branch
+        env:
+          # Untrusted workflow_dispatch input is passed through the environment
+          # instead of being interpolated into the script body, so a value
+          # containing shell metacharacters cannot execute as code.
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
         run: |
-          branch="release-v${{ github.event.inputs.version }}"
+          branch="release-v$RELEASE_VERSION"
           echo "release_branch=$branch" >> $GITHUB_ENV
           echo "Release branch will be: $branch"
       - name: Check if release branch exists
         id: check_branch
+        env:
+          # See the note above: keep untrusted input out of the script body.
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
         run: |
-          branch="release-v${{ github.event.inputs.version }}"
+          branch="release-v$RELEASE_VERSION"
           if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
@@ -75,15 +83,21 @@ jobs:
       - name: Create release branch
         id: update_branch
         shell: bash
+        env:
+          # Untrusted workflow_dispatch inputs are read from the environment and
+          # always quoted, so neither expression injection nor word splitting on
+          # the branch name can reach the git invocation.
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
+          COMMIT_SHA: ${{ github.event.inputs.commit_sha }}
         run: |-
-          branch="release-v${{ github.event.inputs.version }}"
-          commit_sha="${{ github.event.inputs.commit_sha }}"
+          branch="release-v$RELEASE_VERSION"
+          commit_sha="$COMMIT_SHA"
           echo "branch=$branch" >> $GITHUB_OUTPUT
           if [ "${{ steps.check_branch.outputs.exists }}" == "true" ]; then
             echo "Branch '$branch' already exists. Exiting with error."
             exit 1
           else
             echo "Branch '$branch' does not exist. Creating new branch from commit $commit_sha."
-            git checkout -b $branch $commit_sha
+            git checkout -b "$branch" "$commit_sha"
             git push -f origin $branch
           fi
