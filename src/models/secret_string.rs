@@ -60,6 +60,10 @@ impl SecretString {
     {
         self.with_secret_vec(|secret_vec| {
             let bytes = secret_vec.borrow();
+            // SAFETY: the buffer is only ever populated from a `&str` (`SecretString::new`)
+            // or from a `String` (the `Deserialize` implementation), so its contents are
+            // guaranteed to be valid UTF-8 and the resulting borrow is valid for `f`'s
+            // duration because `bytes` outlives the call.
             let s = unsafe { std::str::from_utf8_unchecked(&bytes) };
             f(s)
         })
@@ -72,6 +76,8 @@ impl SecretString {
     pub fn to_str(&self) -> Zeroizing<String> {
         self.with_secret_vec(|secret_vec| {
             let bytes = secret_vec.borrow();
+            // SAFETY: same invariant as `as_str` - the buffer originates from a `&str`
+            // or a `String`, so it is always valid UTF-8.
             let s = unsafe { std::str::from_utf8_unchecked(&bytes) };
             Zeroizing::new(s.to_string())
         })
